@@ -26,18 +26,42 @@ choco install -y visualstudio2022buildtools `
 Write-Host "Installing Windows 10 SDK..." -ForegroundColor Green
 choco install -y windows-sdk-10-version-2004-all
 
-# Install CUDA Toolkit 12.8
-Write-Host "Installing CUDA Toolkit 12.8 from local installer..." -ForegroundColor Green
-$cudaInstaller = "C:\output\cuda_12.8.0_571.96_windows.exe"
-if (Test-Path $cudaInstaller) {
-    & $cudaInstaller -s nvcc_12.8 cuobjdump_12.8 nvprune_12.8 nvprof_12.8 cupti_12.8 cublas_12.8 cublas_dev_12.8 cudart_12.8 cufft_12.8 cufft_dev_12.8 curand_12.8 curand_dev_12.8 cusolver_12.8 cusolver_dev_12.8 cusparse_12.8 cusparse_dev_12.8 npp_12.8 npp_dev_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvml_dev_12.8 nsight_nvtx_12.8
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "WARNING: CUDA installer returned exit code $LASTEXITCODE" -ForegroundColor Yellow
+# Read CUDA version from build-config.toml
+$configPath = "C:\output\build-config.toml"
+$cudaVersion = "12.8"  # Default fallback
+
+if (Test-Path $configPath) {
+    $content = Get-Content $configPath -Raw
+    if ($content -match '(?m)^\s*cuda_version\s*=\s*["'']([^"'']+)["'']') {
+        $cudaVersion = $matches[1]
+        Write-Host "Read CUDA version from config: $cudaVersion" -ForegroundColor Green
     }
-} else {
-    Write-Host "ERROR: CUDA installer not found at $cudaInstaller" -ForegroundColor Red
-    Write-Host "Please download cuda_12.8.0_571.96_windows.exe to the output folder" -ForegroundColor Yellow
+}
+
+# Install CUDA Toolkit from local installer
+Write-Host "Installing CUDA Toolkit $cudaVersion from local installer..." -ForegroundColor Green
+
+# Find matching CUDA installer(s) - match major.minor version
+$cudaInstallers = Get-ChildItem -Path "C:\output" -Filter "cuda_$cudaVersion*.exe" -ErrorAction SilentlyContinue
+if (-not $cudaInstallers -or $cudaInstallers.Count -eq 0) {
+    Write-Host "ERROR: No CUDA installer matching 'cuda_$cudaVersion*.exe' found in C:\output" -ForegroundColor Red
+    Write-Host "Please run download-cuda.ps1 on the host before 'vagrant up'" -ForegroundColor Yellow
+    Write-Host "  .\download-cuda.ps1         # Download via Chocolatey" -ForegroundColor Yellow
+    Write-Host "  .\download-cuda.ps1 -Direct # Download from NVIDIA directly" -ForegroundColor Yellow
     exit 1
+}
+
+# Use the first matching installer (should typically only be one)
+$cudaInstaller = $cudaInstallers[0].FullName
+Write-Host "Using installer: $($cudaInstallers[0].Name)" -ForegroundColor Cyan
+
+# Extract version components for component names (e.g., 12.8 -> nvcc_12.8)
+$versionParts = $cudaVersion -split '\.'
+$componentVersion = "$($versionParts[0]).$($versionParts[1])"
+
+& $cudaInstaller -s "nvcc_$componentVersion" "cuobjdump_$componentVersion" "nvprune_$componentVersion" "nvprof_$componentVersion" "cupti_$componentVersion" "cublas_$componentVersion" "cublas_dev_$componentVersion" "cudart_$componentVersion" "cufft_$componentVersion" "cufft_dev_$componentVersion" "curand_$componentVersion" "curand_dev_$componentVersion" "cusolver_$componentVersion" "cusolver_dev_$componentVersion" "cusparse_$componentVersion" "cusparse_dev_$componentVersion" "npp_$componentVersion" "npp_dev_$componentVersion" "nvrtc_$componentVersion" "nvrtc_dev_$componentVersion" "nvml_dev_$componentVersion" "nsight_nvtx_$componentVersion"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "WARNING: CUDA installer returned exit code $LASTEXITCODE" -ForegroundColor Yellow
 }
 
 # Install Git (minimal)
@@ -75,9 +99,9 @@ if (-not (Test-Path $uvExe)) {
 
 Write-Host "UV installed: $(& $uvExe --version)" -ForegroundColor Green
 
-# Set environment variables permanently
-[System.Environment]::SetEnvironmentVariable("CUDA_PATH", "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8", [System.EnvironmentVariableTarget]::Machine)
-[System.Environment]::SetEnvironmentVariable("CUDA_HOME", "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8", [System.EnvironmentVariableTarget]::Machine)
+# Set environment variables permanently (use cudaVersion from earlier)
+[System.Environment]::SetEnvironmentVariable("CUDA_PATH", "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion", [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable("CUDA_HOME", "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion", [System.EnvironmentVariableTarget]::Machine)
 
 # Find and set Windows SDK path
 $sdkBase = "C:\Program Files (x86)\Windows Kits\10"

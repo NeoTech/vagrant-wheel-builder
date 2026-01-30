@@ -3,3 +3,4 @@ builds
 output/triton-build.log
 output/wheels
 output/cuda_*.exe
+cuda_*.exe

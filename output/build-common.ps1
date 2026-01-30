@@ -7,11 +7,40 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "CUDA Wheel Builder - Common Setup" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-# Configuration
-$script:pythonVersion = "312"
-$script:cudaVersion = "12.8"
-$script:torchVersion = "2.8.0"
-$script:torchCuda = "cu128"
+# Helper function to read values from build-config.toml
+function Get-ConfigValue {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Key,
+        [string]$ConfigPath = "C:\output\build-config.toml"
+    )
+    
+    if (-not (Test-Path $ConfigPath)) {
+        Write-Host "WARNING: Config file not found at $ConfigPath" -ForegroundColor Yellow
+        return $null
+    }
+    
+    $content = Get-Content $ConfigPath -Raw
+    # Match key = "value" or key = 'value' patterns in TOML
+    if ($content -match "(?m)^\s*$Key\s*=\s*[`"']([^`"']+)[`"']") {
+        return $matches[1]
+    }
+    return $null
+}
+
+# Configuration - read from build-config.toml with fallbacks
+$script:configPath = "C:\output\build-config.toml"
+$script:pythonVersion = (Get-ConfigValue -Key "python_version" -ConfigPath $script:configPath) -replace '\.', '' 
+if (-not $script:pythonVersion) { $script:pythonVersion = "312" }
+
+$script:cudaVersion = Get-ConfigValue -Key "cuda_version" -ConfigPath $script:configPath
+if (-not $script:cudaVersion) { $script:cudaVersion = "12.8" }
+
+$script:torchVersion = Get-ConfigValue -Key "torch_version" -ConfigPath $script:configPath
+if (-not $script:torchVersion) { $script:torchVersion = "2.8.0" }
+
+$script:torchCuda = Get-ConfigValue -Key "torch_cuda" -ConfigPath $script:configPath
+if (-not $script:torchCuda) { $script:torchCuda = "cu128" }
 
 # Paths
 $script:pythonExe = "C:\Python$pythonVersion\python.exe"
