@@ -1,0 +1,17 @@
+# build-config.toml
+
+[build]
+python_version = "3.12"
+cuda_version = "12.8"
+torch_version = "2.8.0"
+torch_cuda = "cu128"
+
+[packages]
+flash-attention = { git = "https://github.com/Dao-AILab/flash-attention.git", tag = "v2.7.2" }
+triton = { git = "https://github.com/openai/triton.git", branch = "main", subdir = "python" }
+sage-attention = { pypi = "sageattention", version = "latest" }
+nunchaku = { pypi = "nunchaku", version = "latest" }
+
+[environment]
+MAX_JOBS = "12"
+TORCH_CUDA_ARCH_LIST = "7.5;8.0;8.6;8.9;9.0"
